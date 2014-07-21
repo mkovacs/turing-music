@@ -24,9 +24,18 @@ cabal-version:  >=1.2
 executable turing-music
     ghc-options:    -Wall -fno-warn-name-shadowing -fno-warn-incomplete-patterns
     main-is:        Music.hs
-    other-modules:  Turing,
-                    Machines
-    build-depends:
-        base,
-        ALUT >= 2
+    other-modules:  Turing
+                 ,  Machines
+    build-depends:  base
+                 ,  midi ==0.2.*
+                 ,  alsa-seq ==0.6.*
+                 ,  ALUT >= 2
 
+executable turing-music-midi
+    ghc-options:    -Wall -fno-warn-name-shadowing -fno-warn-incomplete-patterns
+    main-is:        MidiMusic.hs
+    other-modules:  Common
+    build-depends:  base
+                 ,  alsa-core ==0.5.*
+                 ,  alsa-seq ==0.6.*
+                 ,  transformers ==0.3.*

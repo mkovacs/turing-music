@@ -12,11 +12,14 @@ blankSymbol = '0'
 ----------------------
 
 -- tape with head
-data Tape = Tape 
+data Tape = Tape
         { pos :: Int                -- head position
         , left :: [Symbol]          -- elems before the head
         , right :: [Symbol]         -- elem at the head and elems after the head
         }
+
+eq :: Tape -> Tape -> Bool
+eq t t' = goToMiddle t == goToMiddle t'
 
 instance Eq Tape where
     (==) (Tape p l r) (Tape p' l' r') 
@@ -83,6 +86,3 @@ run _ s _ | s == haltingState   = []
 run m s t = case lookup (s, symbolAtHead t) m of
         Nothing                 -> []
         Just    (sym, sh, next) -> let t' = write sym t in t': run m next (shift sh t')
-
-
-
