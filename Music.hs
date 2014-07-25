@@ -37,9 +37,6 @@ playMachine m = do
     putStrLn ""
     mapM_ play1 $ groupBy eq $ run m initialState blankTape
 
-eq :: Tape -> Tape -> Bool
-eq t t' = goToMiddle t == goToMiddle t'
-
 createBuff :: BufferData a -> Frequency -> IO Buffer
 createBuff (BufferData m fmt f) x = do
     [b] <- genObjectNames 1

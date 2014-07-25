@@ -23,7 +23,7 @@ main = handleExceptionCont $ do
   h <- ContT $ SndSeq.withDefault SndSeq.Block
   liftIO $ Client.setName h "Turing Music"
   p <- ContT $ Port.withSimple h "out" (Port.caps [Port.capRead, Port.capSubsRead]) Port.typeMidiGeneric
-  let m = machines !! 41
+  let m = machines !! 14
   let tapes = run m initialState blankTape
   liftIO $ playTapes h p "128:0" tapes
 
@@ -38,13 +38,13 @@ playTapes h p destStr states = do
         $ Event.simpleNote (Event.Channel 0) (Event.Pitch pitch) $ Event.Velocity vel
       play group = do
         let tape = head group
-        putStrLn $ showTape 40 tape
+        putStrLn $ showTape 78 tape
         let Note{..} = groupToNote (length group) tape
         Event.outputDirect h $ note noteKey noteVol
         threadDelay (noteLen * 10^3 :: Int)
         Event.outputDirect h $ note noteKey 0
   Event.outputDirect h $ Event.forConnection conn $ Event.CtrlEv Event.PgmChange
-    $ Event.Ctrl (Event.Channel 0) (Event.Parameter 0) (Event.Value tenorSax)
+    $ Event.Ctrl (Event.Channel 0) (Event.Parameter 0) (Event.Value xylophone)
   mapM_ play groups
  where
   acousticGrandPiano  = 0
@@ -55,6 +55,7 @@ playTapes h p destStr states = do
   electricBassPick    = 34
   tenorSax            = 66
   flute               = 73
+  shakuhachi          = 77
 
 data Note =
   Note
@@ -66,8 +67,8 @@ data Note =
 groupToNote :: Int -> Tape -> Note
 groupToNote len Tape{..} =
   Note
-  { noteKey = fromIntegral $ 64 + pos
-  , noteVol = fromIntegral $ 64 * if head right == '0' then 1 else 2
+  { noteKey = fromIntegral $ 88 + pos
+  , noteVol = fromIntegral $ 100 * if head right == '0' then 1 else 2
   , noteLen = 100 * len
   }
 
@@ -83,9 +84,7 @@ handleExceptionCont = handleException . runContUnit
 
 handleException :: IO () -> IO ()
 handleException act =
-   act
-   `AlsaExc.catch` \e ->
-      putStrLn $ "alsa_exception: " ++ AlsaExc.show e
+   act `AlsaExc.catch` \e -> putStrLn $ "alsa_exception: " ++ AlsaExc.show e
 
 runContUnit :: (Monad m) => ContT a m a -> m a
 runContUnit cont = runContT cont return
