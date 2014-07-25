@@ -34,7 +34,8 @@ executable turing-music
 executable turing-music-midi
     ghc-options:    -Wall -fno-warn-name-shadowing -fno-warn-incomplete-patterns
     main-is:        MidiMusic.hs
-    other-modules:  Common
+    other-modules:  Turing
+                 ,  Machines
     build-depends:  base
                  ,  alsa-core ==0.5.*
                  ,  alsa-seq ==0.6.*
