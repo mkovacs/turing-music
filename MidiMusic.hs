@@ -1,20 +1,19 @@
 {-# LANGUAGE RecordWildCards #-}
-import Common (handleExceptionCont, parseDestArgs, )
-
+import qualified Sound.ALSA.Exception         as AlsaExc
+import qualified Sound.ALSA.Sequencer         as SndSeq
 import qualified Sound.ALSA.Sequencer.Address as Addr
-import qualified Sound.ALSA.Sequencer.Client as Client
-import qualified Sound.ALSA.Sequencer.Port as Port
-import qualified Sound.ALSA.Sequencer.Event as Event
-import qualified Sound.ALSA.Sequencer as SndSeq
+import qualified Sound.ALSA.Sequencer.Client  as Client
+import qualified Sound.ALSA.Sequencer.Connect as Connect
+import qualified Sound.ALSA.Sequencer.Port    as Port
+import qualified Sound.ALSA.Sequencer.Event   as Event
 
-import Data.List (groupBy)
-import Data.Word (Word8)
-import Control.Concurrent (threadDelay)
-import Control.Monad (forM_)
-import Control.Monad.Trans.Cont (ContT(ContT), )
-import Control.Monad.IO.Class (liftIO, )
-
-import System.Environment (getArgs, )
+import           Control.Concurrent           (threadDelay)
+import           Control.Monad                (forM_)
+import           Control.Monad.IO.Class       (liftIO)
+import           Control.Monad.Trans.Cont     (ContT(ContT), runContT)
+import           Data.List                    (groupBy)
+import           Data.Word                    (Word8)
+import           System.Environment           (getArgs)
 
 import Machines
 import Turing
@@ -71,3 +70,22 @@ groupToNote len Tape{..} =
   , noteVol = fromIntegral $ 64 * if head right == '0' then 1 else 2
   , noteLen = 100 * len
   }
+
+parseDestArgs ::
+   (SndSeq.AllowOutput mode) =>
+   SndSeq.T mode -> Addr.T -> String -> IO Connect.T
+parseDestArgs h me destStr = do
+   let p = Addr.port me
+   Connect.createTo h p =<< Addr.parse h destStr
+
+handleExceptionCont :: ContT () IO () -> IO ()
+handleExceptionCont = handleException . runContUnit
+
+handleException :: IO () -> IO ()
+handleException act =
+   act
+   `AlsaExc.catch` \e ->
+      putStrLn $ "alsa_exception: " ++ AlsaExc.show e
+
+runContUnit :: (Monad m) => ContT a m a -> m a
+runContUnit cont = runContT cont return
