@@ -26,13 +26,13 @@ main = handleExceptionCont $ do
   p <- ContT $ Port.withSimple h "out" (Port.caps [Port.capRead, Port.capSubsRead]) Port.typeMidiGeneric
   let m = machines !! 41
   let tapes = run m initialState blankTape
-  liftIO $ playTapes h p tapes
+  liftIO $ playTapes h p "128:0" tapes
 
-playTapes :: SndSeq.T SndSeq.OutputMode -> Port.T -> [Tape] -> IO ()
-playTapes h p states = do
+playTapes :: SndSeq.T SndSeq.OutputMode -> Port.T -> String -> [Tape] -> IO ()
+playTapes h p destStr states = do
   c <- Client.getId h
   putStrLn ("Created sequencer with id: " ++ show c)
-  conn <- parseDestArgs h (Addr.Cons c p) =<< getArgs
+  conn <- parseDestArgs h (Addr.Cons c p) destStr
   let groups = groupBy eq states
   let note pitch vel =
         Event.forConnection conn $ Event.NoteEv Event.NoteOn
