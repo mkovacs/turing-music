@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 import qualified Sound.ALSA.Exception         as AlsaExc
 import qualified Sound.ALSA.Sequencer         as SndSeq
 import qualified Sound.ALSA.Sequencer.Address as Addr
@@ -11,8 +12,11 @@ import           Control.Concurrent           (threadDelay)
 import           Control.Monad                (forM_)
 import           Control.Monad.IO.Class       (liftIO)
 import           Control.Monad.Trans.Cont     (ContT(ContT), runContT)
+import           Data.Int                     (Int32)
 import           Data.List                    (groupBy)
+import qualified Data.Map                     as Map
 import           Data.Word                    (Word8)
+import           System.Console.CmdArgs
 import           System.Environment           (getArgs)
 
 import Machines
@@ -27,25 +31,69 @@ main = handleExceptionCont $ do
 
 midiMain :: SndSeq.T SndSeq.OutputMode -> Port.T -> IO ()
 midiMain h p = do
+  config <- cmdArgs arguments
   let m = machines !! 14
   let tapes = run m initialState blankTape
   let destStr = "128:0"
   c <- Client.getId h
   putStrLn ("Created sequencer with id: " ++ show c)
   conn <- parseDestArgs h (Addr.Cons c p) destStr
+  let instrumentNum = instrumentMap Map.! "xylophone"
   _ <- Event.outputDirect h $ Event.forConnection conn $ Event.CtrlEv Event.PgmChange
-         $ Event.Ctrl (Event.Channel 0) (Event.Parameter 0) (Event.Value xylophone)
+         $ Event.Ctrl (Event.Channel 0) (Event.Parameter 0) (Event.Value instrumentNum)
   playTapes h conn tapes
- where
-  acousticGrandPiano  = 0
-  marimba             = 12
-  xylophone           = 13
-  acousticNylonGuitar = 24
-  electricJazzGuitar  = 26
-  electricBassPick    = 34
-  tenorSax            = 66
-  flute               = 73
-  shakuhachi          = 77
+
+data Arguments = Arguments
+    { port       :: String
+    , machine    :: Int
+    , instrument :: String
+    , scale      :: String
+    , base       :: String
+    } deriving (Eq, Show, Data, Typeable)
+
+defaultPort       :: String
+defaultPort       = "128:0"
+defaultMachine    :: Int
+defaultMachine    = 41
+defaultInstrument :: String
+defaultInstrument = "acousticGrandPiano"
+defaultScale      :: String
+defaultScale      = "pentatonic"
+defaultBase       :: String
+defaultBase       = "C"
+
+arguments :: Arguments
+arguments = Arguments
+  { port
+    =  defaultPort
+    &= typ "CLIENT:PORT,..."
+    &= help ("MIDI port(s) to play to (default: " ++ defaultPort ++ ")")
+  , machine
+    =  defaultMachine
+    &= help ("Machine to use as generator (default: " ++ show defaultMachine ++ ")")
+  , instrument
+    =  defaultInstrument
+    &= help ("Musical instrument (default: " ++ defaultInstrument ++ ")")
+  , scale
+    =  defaultScale
+    &= help ("Musical scale (default: " ++ defaultScale ++ ")")
+  , base
+    =  defaultBase
+    &= help ("Base note of the scale (default: " ++ defaultBase ++ ")")
+  } &= program "turing-tunes-midi" &= summary "Generate MIDI tunes from simple Turing machines"
+
+instrumentMap :: Map.Map String Int32
+instrumentMap = Map.fromList
+  [ (,) "acousticGrandPiano"   0
+  , (,) "marimba"             12
+  , (,) "xylophone"           13
+  , (,) "acousticNylonGuitar" 24
+  , (,) "electricJazzGuitar"  26
+  , (,) "electricBassPick"    34
+  , (,) "tenorSax"            66
+  , (,) "flute"               73
+  , (,) "shakuhachi"          77
+  ]
 
 playTapes :: SndSeq.T SndSeq.OutputMode -> Connect.T -> [Tape] -> IO ()
 playTapes h conn states = do

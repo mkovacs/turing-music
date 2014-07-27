@@ -39,4 +39,6 @@ executable turing-music-midi
     build-depends:  base
                  ,  alsa-core ==0.5.*
                  ,  alsa-seq ==0.6.*
+                 ,  cmdargs ==0.10.*
+                 ,  containers ==0.5.*
                  ,  transformers ==0.3.*
