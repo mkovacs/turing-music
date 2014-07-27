@@ -23,29 +23,19 @@ main = handleExceptionCont $ do
   h <- ContT $ SndSeq.withDefault SndSeq.Block
   liftIO $ Client.setName h "Turing Music"
   p <- ContT $ Port.withSimple h "out" (Port.caps [Port.capRead, Port.capSubsRead]) Port.typeMidiGeneric
+  liftIO $ midiMain h p
+
+midiMain :: SndSeq.T SndSeq.OutputMode -> Port.T -> IO ()
+midiMain h p = do
   let m = machines !! 14
   let tapes = run m initialState blankTape
-  liftIO $ playTapes h p "128:0" tapes
-
-playTapes :: SndSeq.T SndSeq.OutputMode -> Port.T -> String -> [Tape] -> IO ()
-playTapes h p destStr states = do
+  let destStr = "128:0"
   c <- Client.getId h
   putStrLn ("Created sequencer with id: " ++ show c)
   conn <- parseDestArgs h (Addr.Cons c p) destStr
-  let groups = groupBy eq states
-  let note pitch vel =
-        Event.forConnection conn $ Event.NoteEv Event.NoteOn
-        $ Event.simpleNote (Event.Channel 0) (Event.Pitch pitch) $ Event.Velocity vel
-      play group = do
-        let tape = head group
-        putStrLn $ showTape 78 tape
-        let Note{..} = groupToNote (length group) tape
-        Event.outputDirect h $ note noteKey noteVol
-        threadDelay (noteLen * 10^3 :: Int)
-        Event.outputDirect h $ note noteKey 0
-  Event.outputDirect h $ Event.forConnection conn $ Event.CtrlEv Event.PgmChange
-    $ Event.Ctrl (Event.Channel 0) (Event.Parameter 0) (Event.Value xylophone)
-  mapM_ play groups
+  _ <- Event.outputDirect h $ Event.forConnection conn $ Event.CtrlEv Event.PgmChange
+         $ Event.Ctrl (Event.Channel 0) (Event.Parameter 0) (Event.Value xylophone)
+  playTapes h conn tapes
  where
   acousticGrandPiano  = 0
   marimba             = 12
@@ -56,6 +46,23 @@ playTapes h p destStr states = do
   tenorSax            = 66
   flute               = 73
   shakuhachi          = 77
+
+playTapes :: SndSeq.T SndSeq.OutputMode -> Connect.T -> [Tape] -> IO ()
+playTapes h conn states = do
+  mapM_ play groups
+ where
+  groups = groupBy eq states
+  note pitch vel =
+    Event.forConnection conn $ Event.NoteEv Event.NoteOn
+      $ Event.simpleNote (Event.Channel 0) (Event.Pitch pitch) $ Event.Velocity vel
+  play group = do
+    let tape = head group
+    putStrLn $ showTape 78 tape
+    let Note{..} = groupToNote (length group) tape
+    _ <- Event.outputDirect h $ note noteKey noteVol
+    threadDelay (noteLen * 10^3 :: Int)
+    _ <- Event.outputDirect h $ note noteKey 0
+    return ()
 
 data Note =
   Note
