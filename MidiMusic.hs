@@ -1,5 +1,6 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 import qualified Sound.ALSA.Exception         as AlsaExc
 import qualified Sound.ALSA.Sequencer         as SndSeq
 import qualified Sound.ALSA.Sequencer.Address as Addr
@@ -31,32 +32,29 @@ main = handleExceptionCont $ do
 
 midiMain :: SndSeq.T SndSeq.OutputMode -> Port.T -> IO ()
 midiMain h p = do
-  config <- cmdArgs arguments
+  Arguments{..} <- cmdArgs arguments
   let m = machines !! 14
   let tapes = run m initialState blankTape
   let destStr = "128:0"
   c <- Client.getId h
   putStrLn ("Created sequencer with id: " ++ show c)
   conn <- parseDestArgs h (Addr.Cons c p) destStr
-  let instrumentNum = instrumentMap Map.! "xylophone"
   _ <- Event.outputDirect h $ Event.forConnection conn $ Event.CtrlEv Event.PgmChange
-         $ Event.Ctrl (Event.Channel 0) (Event.Parameter 0) (Event.Value instrumentNum)
+         $ Event.Ctrl (Event.Channel 0) (Event.Parameter 0) (Event.Value $ instrumentCode instrument)
   playTapes h conn tapes
 
 data Arguments = Arguments
     { port       :: String
     , machine    :: Int
-    , instrument :: String
+    , instrument :: Instrument
     , scale      :: String
     , base       :: String
-    } deriving (Eq, Show, Data, Typeable)
+    } deriving (Data, Eq, Show, Typeable)
 
 defaultPort       :: String
 defaultPort       = "128:0"
 defaultMachine    :: Int
 defaultMachine    = 41
-defaultInstrument :: String
-defaultInstrument = "acousticGrandPiano"
 defaultScale      :: String
 defaultScale      = "pentatonic"
 defaultBase       :: String
@@ -72,8 +70,8 @@ arguments = Arguments
     =  defaultMachine
     &= help ("Machine to use as generator (default: " ++ show defaultMachine ++ ")")
   , instrument
-    =  defaultInstrument
-    &= help ("Musical instrument (default: " ++ defaultInstrument ++ ")")
+    = def
+    &= help ("Musical instrument (default: " ++ show (def :: Instrument) ++ ")")
   , scale
     =  defaultScale
     &= help ("Musical scale (default: " ++ defaultScale ++ ")")
@@ -82,18 +80,32 @@ arguments = Arguments
     &= help ("Base note of the scale (default: " ++ defaultBase ++ ")")
   } &= program "turing-tunes-midi" &= summary "Generate MIDI tunes from simple Turing machines"
 
-instrumentMap :: Map.Map String Int32
-instrumentMap = Map.fromList
-  [ (,) "acousticGrandPiano"   0
-  , (,) "marimba"             12
-  , (,) "xylophone"           13
-  , (,) "acousticNylonGuitar" 24
-  , (,) "electricJazzGuitar"  26
-  , (,) "electricBassPick"    34
-  , (,) "tenorSax"            66
-  , (,) "flute"               73
-  , (,) "shakuhachi"          77
-  ]
+data Instrument
+  = AcousticGrandPiano
+  | Marimba
+  | Xylophone
+  | AcousticNylonGuitar
+  | ElectricJazzGuitar
+  | ElectricBassPick
+  | TenorSax
+  | Flute
+  | Shakuhachi
+  deriving (Data, Eq, Read, Show, Typeable)
+
+instance Default Instrument where
+  def = AcousticGrandPiano
+
+instrumentCode :: Instrument -> Int32
+instrumentCode = \case
+  AcousticGrandPiano  ->  0
+  Marimba             -> 12
+  Xylophone           -> 13
+  AcousticNylonGuitar -> 24
+  ElectricJazzGuitar  -> 26
+  ElectricBassPick    -> 34
+  TenorSax            -> 66
+  Flute               -> 73
+  Shakuhachi          -> 77
 
 playTapes :: SndSeq.T SndSeq.OutputMode -> Connect.T -> [Tape] -> IO ()
 playTapes h conn states = do
