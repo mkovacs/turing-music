@@ -10,6 +10,7 @@ import qualified Sound.ALSA.Sequencer.Port    as Port
 import qualified Sound.ALSA.Sequencer.Event   as Event
 
 import           Control.Concurrent           (threadDelay)
+import           Control.Exception            (finally)
 import           Control.Monad                (forM_)
 import           Control.Monad.IO.Class       (liftIO)
 import           Control.Monad.Trans.Cont     (ContT(ContT), runContT)
@@ -35,13 +36,17 @@ midiMain h p = do
   Arguments{..} <- cmdArgs arguments
   let m = machines !! 14
   let tapes = run m initialState blankTape
-  let destStr = "128:0"
   c <- Client.getId h
   putStrLn ("Created sequencer with id: " ++ show c)
-  conn <- parseDestArgs h (Addr.Cons c p) destStr
+  conn <- parseDestArgs h (Addr.Cons c p) port
   _ <- Event.outputDirect h $ Event.forConnection conn $ Event.CtrlEv Event.PgmChange
          $ Event.Ctrl (Event.Channel 0) (Event.Parameter 0) (Event.Value $ instrumentCode instrument)
-  playTapes h conn tapes
+  finally (playTapes h conn tapes) (allSoundOff h conn)
+
+allSoundOff :: SndSeq.T SndSeq.OutputMode -> Connect.T -> IO ()
+allSoundOff h conn = do
+  putStrLn "Turning all sound off"
+  -- _ <- Event.outputDirect h $
 
 data Arguments = Arguments
     { port       :: String
@@ -90,7 +95,7 @@ data Instrument
   | TenorSax
   | Flute
   | Shakuhachi
-  deriving (Data, Eq, Read, Show, Typeable)
+  deriving (Data, Enum, Eq, Read, Show, Typeable)
 
 instance Default Instrument where
   def = AcousticGrandPiano
@@ -135,7 +140,7 @@ groupToNote :: Int -> Tape -> Note
 groupToNote len Tape{..} =
   Note
   { noteKey = fromIntegral $ 88 + pos
-  , noteVol = fromIntegral $ 100 * if head right == '0' then 1 else 2
+  , noteVol = fromIntegral $ if head right == '0' then 64 else 127
   , noteLen = 100 * len
   }
 
