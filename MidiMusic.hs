@@ -37,8 +37,7 @@ main = handleExceptionCont $ do
 midiMain :: SndSeq.T SndSeq.OutputMode -> Port.T -> IO ()
 midiMain h p = do
   Arguments{..} <- cmdArgs arguments
-  let m = machines !! 14
-  let tapes = run m initialState blankTape
+  let tapes = run (machines !! machine) initialState blankTape
   c <- Client.getId h
   putStrLn ("Created sequencer with id: " ++ show c)
   conn <- parseDestArgs h (Addr.Cons c p) port
