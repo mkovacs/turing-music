@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving #-}
 import qualified Sound.ALSA.Exception            as AlsaExc
 import qualified Sound.ALSA.Sequencer            as SndSeq
 import qualified Sound.ALSA.Sequencer.Address    as Addr
@@ -9,6 +10,7 @@ import qualified Sound.ALSA.Sequencer.Connect    as Connect
 import qualified Sound.ALSA.Sequencer.Port       as Port
 import qualified Sound.ALSA.Sequencer.Event      as Event
 import qualified Sound.MIDI.ALSA                 as MidiAlsa
+import qualified Sound.MIDI.General              as Midi
 import qualified Sound.MIDI.Message.Channel      as ChannelMsg
 import qualified Sound.MIDI.Message.Channel.Mode as Mode
 
@@ -42,20 +44,25 @@ midiMain h p = do
   putStrLn ("Created sequencer with id: " ++ show c)
   conn <- parseDestArgs h (Addr.Cons c p) port
   _ <- Event.outputDirect h $ Event.forConnection conn $ Event.CtrlEv Event.PgmChange
-         $ Event.Ctrl (Event.Channel 0) (Event.Parameter 0) (Event.Value $ instrumentCode instrument)
+         $ MidiAlsa.programChangeEvent channel0 (Midi.instrumentToProgram instrument)
   finally (playTapes h conn tapes) (allSoundOff h conn)
 
 allSoundOff :: SndSeq.T SndSeq.OutputMode -> Connect.T -> IO ()
 allSoundOff h conn = do
   putStrLn "Turning all sound off"
   _ <- Event.outputDirect h $ Event.forConnection conn $ Event.CtrlEv Event.Controller
-         $ MidiAlsa.modeEvent (MidiAlsa.toChannel $ Event.Channel 0) Mode.AllSoundOff
+         $ MidiAlsa.modeEvent channel0 Mode.AllSoundOff
   return ()
+
+channel0 = MidiAlsa.toChannel $ Event.Channel 0
+
+deriving instance Data Midi.Instrument
+deriving instance Typeable Midi.Instrument
 
 data Arguments = Arguments
     { port       :: String
     , machine    :: Int
-    , instrument :: Instrument
+    , instrument :: Midi.Instrument
     , scale      :: String
     , base       :: String
     } deriving (Data, Eq, Show, Typeable)
@@ -64,6 +71,8 @@ defaultPort       :: String
 defaultPort       = "128:0"
 defaultMachine    :: Int
 defaultMachine    = 41
+defaultInstrument :: Midi.Instrument
+defaultInstrument = Midi.AcousticGrandPiano
 defaultScale      :: String
 defaultScale      = "pentatonic"
 defaultBase       :: String
@@ -79,8 +88,8 @@ arguments = Arguments
     =  defaultMachine
     &= help ("Machine to use as generator (default: " ++ show defaultMachine ++ ")")
   , instrument
-    = def
-    &= help ("Musical instrument (default: " ++ show (def :: Instrument) ++ ")")
+    = defaultInstrument
+    &= help ("Musical instrument (default: " ++ show defaultInstrument ++ ")")
   , scale
     =  defaultScale
     &= help ("Musical scale (default: " ++ defaultScale ++ ")")
@@ -89,6 +98,7 @@ arguments = Arguments
     &= help ("Base note of the scale (default: " ++ defaultBase ++ ")")
   } &= program "turing-tunes-midi" &= summary "Generate MIDI tunes from simple Turing machines"
 
+{-
 data Instrument
   = AcousticGrandPiano
   | Marimba
@@ -101,8 +111,8 @@ data Instrument
   | Shakuhachi
   deriving (Data, Enum, Eq, Read, Show, Typeable)
 
-instance Default Instrument where
-  def = AcousticGrandPiano
+instance Default Midi.Instrument where
+  def = Midi.AcousticGrandPiano
 
 instrumentCode :: Instrument -> Int32
 instrumentCode = \case
@@ -115,6 +125,7 @@ instrumentCode = \case
   TenorSax            -> 66
   Flute               -> 73
   Shakuhachi          -> 77
+-}
 
 playTapes :: SndSeq.T SndSeq.OutputMode -> Connect.T -> [Tape] -> IO ()
 playTapes h conn states = do
