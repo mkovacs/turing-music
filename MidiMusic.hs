@@ -1,13 +1,16 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
-import qualified Sound.ALSA.Exception         as AlsaExc
-import qualified Sound.ALSA.Sequencer         as SndSeq
-import qualified Sound.ALSA.Sequencer.Address as Addr
-import qualified Sound.ALSA.Sequencer.Client  as Client
-import qualified Sound.ALSA.Sequencer.Connect as Connect
-import qualified Sound.ALSA.Sequencer.Port    as Port
-import qualified Sound.ALSA.Sequencer.Event   as Event
+import qualified Sound.ALSA.Exception            as AlsaExc
+import qualified Sound.ALSA.Sequencer            as SndSeq
+import qualified Sound.ALSA.Sequencer.Address    as Addr
+import qualified Sound.ALSA.Sequencer.Client     as Client
+import qualified Sound.ALSA.Sequencer.Connect    as Connect
+import qualified Sound.ALSA.Sequencer.Port       as Port
+import qualified Sound.ALSA.Sequencer.Event      as Event
+import qualified Sound.MIDI.ALSA                 as MidiAlsa
+import qualified Sound.MIDI.Message.Channel      as ChannelMsg
+import qualified Sound.MIDI.Message.Channel.Mode as Mode
 
 import           Control.Concurrent           (threadDelay)
 import           Control.Exception            (finally)
@@ -46,7 +49,9 @@ midiMain h p = do
 allSoundOff :: SndSeq.T SndSeq.OutputMode -> Connect.T -> IO ()
 allSoundOff h conn = do
   putStrLn "Turning all sound off"
-  -- _ <- Event.outputDirect h $
+  _ <- Event.outputDirect h $ Event.forConnection conn $ Event.CtrlEv Event.Controller
+         $ MidiAlsa.modeEvent (MidiAlsa.toChannel $ Event.Channel 0) Mode.AllSoundOff
+  return ()
 
 data Arguments = Arguments
     { port       :: String

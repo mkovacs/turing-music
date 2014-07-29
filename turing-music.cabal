@@ -41,4 +41,5 @@ executable turing-music-midi
                  ,  alsa-seq ==0.6.*
                  ,  cmdargs ==0.10.*
                  ,  containers ==0.5.*
+                 ,  midi-alsa ==0.2.*
                  ,  transformers ==0.3.*
