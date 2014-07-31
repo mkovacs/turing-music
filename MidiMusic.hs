@@ -26,8 +26,9 @@ import           Data.Word                    (Word8)
 import           System.Console.CmdArgs
 import           System.Environment           (getArgs)
 
-import Machines
-import Turing
+import           Machines
+import           Turing
+import qualified Scale
 
 main :: IO ()
 main = handleExceptionCont $ do
@@ -60,12 +61,12 @@ deriving instance Data Midi.Instrument
 deriving instance Typeable Midi.Instrument
 
 data Arguments = Arguments
-    { port       :: String
-    , machine    :: Int
-    , instrument :: Midi.Instrument
-    , scale      :: String
-    , base       :: String
-    } deriving (Data, Eq, Show, Typeable)
+  { port       :: String
+  , machine    :: Int
+  , instrument :: Midi.Instrument
+  , scale      :: Scale.Pattern
+  , base       :: String
+  } deriving (Data, Eq, Show, Typeable)
 
 defaultPort       :: String
 defaultPort       = "128:0"
@@ -73,8 +74,8 @@ defaultMachine    :: Int
 defaultMachine    = 41
 defaultInstrument :: Midi.Instrument
 defaultInstrument = Midi.AcousticGrandPiano
-defaultScale      :: String
-defaultScale      = "pentatonic"
+defaultScale      :: Scale.Pattern
+defaultScale      = Scale.MajorPentatonic
 defaultBase       :: String
 defaultBase       = "C"
 
@@ -92,40 +93,11 @@ arguments = Arguments
     &= help ("Musical instrument (default: " ++ show defaultInstrument ++ ")")
   , scale
     =  defaultScale
-    &= help ("Musical scale (default: " ++ defaultScale ++ ")")
+    &= help ("Musical scale (default: " ++ show defaultScale ++ ")")
   , base
     =  defaultBase
     &= help ("Base note of the scale (default: " ++ defaultBase ++ ")")
   } &= program "turing-tunes-midi" &= summary "Generate MIDI tunes from simple Turing machines"
-
-{-
-data Instrument
-  = AcousticGrandPiano
-  | Marimba
-  | Xylophone
-  | AcousticNylonGuitar
-  | ElectricJazzGuitar
-  | ElectricBassPick
-  | TenorSax
-  | Flute
-  | Shakuhachi
-  deriving (Data, Enum, Eq, Read, Show, Typeable)
-
-instance Default Midi.Instrument where
-  def = Midi.AcousticGrandPiano
-
-instrumentCode :: Instrument -> Int32
-instrumentCode = \case
-  AcousticGrandPiano  ->  0
-  Marimba             -> 12
-  Xylophone           -> 13
-  AcousticNylonGuitar -> 24
-  ElectricJazzGuitar  -> 26
-  ElectricBassPick    -> 34
-  TenorSax            -> 66
-  Flute               -> 73
-  Shakuhachi          -> 77
--}
 
 playTapes :: SndSeq.T SndSeq.OutputMode -> Connect.T -> [Tape] -> IO ()
 playTapes h conn states = do
