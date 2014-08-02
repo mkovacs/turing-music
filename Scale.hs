@@ -2,12 +2,9 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 module Scale
-  ( Letter(..)
-  , Note(..)
-  , Pitch(..)
-  , pitchValue
+  ( Pitch
   , Pattern(..)
-  , toIntervals
+  , scaleValues
   ) where
 
 import Control.Applicative ((<$>), (<$), (<*>))
@@ -18,13 +15,17 @@ import Text.ParserCombinators.Parsec.Number
 import Text.Parsec.Prim
 import Text.Parsec.String
 
+scaleValues :: Pitch -> Pattern -> [Int]
+scaleValues base scale =
+  scanl (+) (pitchValue base) (intervals scale)
+
 x ==> y = y <$ x
 
 reader p =
-  const $ either (const []) (\x -> [(x, "")]) . parse p ""
+  const $ either (error . show) (\x -> [(x, "")]) . parse p ""
 
 data Letter = C | D | E | F | G | A | B
-  deriving (Eq, Show)
+  deriving (Data, Eq, Show, Typeable)
 
 parseLetter :: Parser Letter
 parseLetter = choice
@@ -51,7 +52,7 @@ letterValue = \case
   B -> 11
 
 data Accidental = Flat | Natural | Sharp
-  deriving (Eq, Show)
+  deriving (Data, Eq, Show, Typeable)
 
 parseAccidental :: Parser Accidental
 parseAccidental = choice
@@ -70,7 +71,7 @@ accidentalValue = \case
   Sharp   -> 1
 
 data Note = Note Letter Accidental
-  deriving (Eq, Show)
+  deriving (Data, Eq, Show, Typeable)
 
 parseNote :: Parser Note
 parseNote =
@@ -92,7 +93,7 @@ noteValue (Note letter accidental) =
   letterValue letter + accidentalValue accidental
 
 data Pitch = Pitch { pitchNote :: Note, pitchOctave :: Int }
-  deriving (Show)
+  deriving (Data, Eq, Show, Typeable)
 
 parsePitch :: Parser Pitch
 parsePitch =
@@ -122,8 +123,8 @@ data Pattern
 --  | Intervals [Int]
   deriving (Data, Eq, Show, Typeable)
 
-toIntervals :: Pattern -> [Int]
-toIntervals = \case
+intervals :: Pattern -> [Int]
+intervals = \case
   Major           -> [2, 2, 1, 2, 2, 2, 1]
   Minor           -> [2, 1, 2, 2, 1, 2, 2]
   Ionian          -> [2, 2, 1, 2, 2, 2, 1]

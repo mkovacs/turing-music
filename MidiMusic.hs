@@ -40,13 +40,17 @@ main = handleExceptionCont $ do
 midiMain :: SndSeq.T SndSeq.OutputMode -> Port.T -> IO ()
 midiMain h p = do
   Arguments{..} <- cmdArgs arguments
+  let
+    basePitch = read base :: Scale.Pitch
+    scaleKeys = Scale.scaleValues basePitch scale
+  putStrLn $ "base note: " ++ show basePitch
   let tapes = run (machines !! machine) initialState blankTape
   c <- Client.getId h
   putStrLn ("Created sequencer with id: " ++ show c)
   conn <- parseDestArgs h (Addr.Cons c p) port
   _ <- Event.outputDirect h $ Event.forConnection conn $ Event.CtrlEv Event.PgmChange
          $ MidiAlsa.programChangeEvent channel0 (Midi.instrumentToProgram instrument)
-  finally (playTapes h conn tapes) (allSoundOff h conn)
+  finally (playTapes h conn scaleKeys tapes) (allSoundOff h conn)
 
 allSoundOff :: SndSeq.T SndSeq.OutputMode -> Connect.T -> IO ()
 allSoundOff h conn = do
@@ -77,7 +81,7 @@ defaultInstrument = Midi.AcousticGrandPiano
 defaultScale      :: Scale.Pattern
 defaultScale      = Scale.MajorPentatonic
 defaultBase       :: String
-defaultBase       = "C"
+defaultBase       = "C5"
 
 arguments :: Arguments
 arguments = Arguments
@@ -96,40 +100,30 @@ arguments = Arguments
     &= help ("Musical scale (default: " ++ show defaultScale ++ ")")
   , base
     =  defaultBase
+    &= typ "PITCH"
     &= help ("Base note of the scale (default: " ++ defaultBase ++ ")")
   } &= program "turing-tunes-midi" &= summary "Generate MIDI tunes from simple Turing machines"
 
-playTapes :: SndSeq.T SndSeq.OutputMode -> Connect.T -> [Tape] -> IO ()
-playTapes h conn states = do
-  mapM_ play groups
+playTapes :: SndSeq.T SndSeq.OutputMode -> Connect.T -> [Int] -> [Tape] -> IO ()
+playTapes h conn scale states = do
+  mapM_ (play scale) groups
  where
   groups = groupBy eq states
   note pitch vel =
     Event.forConnection conn $ Event.NoteEv Event.NoteOn
       $ Event.simpleNote (Event.Channel 0) (Event.Pitch pitch) $ Event.Velocity vel
-  play group = do
-    let tape = head group
+  play scale stateGroup = do
+    let
+      tape@Tape{..} = head stateGroup
+      len = length stateGroup
+      key = fromIntegral $ scale !! (pos `mod` length scale)
+      volume = fromIntegral $ if head right == '0' then 64 else 127
+      duration = (100 * len) :: Int
     putStrLn $ showTape 78 tape
-    let Note{..} = groupToNote (length group) tape
-    _ <- Event.outputDirect h $ note noteKey noteVol
-    threadDelay (noteLen * 10^3 :: Int)
-    _ <- Event.outputDirect h $ note noteKey 0
+    _ <- Event.outputDirect h $ note key volume
+    threadDelay (duration * 10^(3 :: Int))
+    _ <- Event.outputDirect h $ note key 0
     return ()
-
-data Note =
-  Note
-  { noteKey :: Word8 -- MIDI key
-  , noteVol :: Word8 -- MIDI velocity
-  , noteLen :: Int -- milliseconds
-  }
-
-groupToNote :: Int -> Tape -> Note
-groupToNote len Tape{..} =
-  Note
-  { noteKey = fromIntegral $ 88 + pos
-  , noteVol = fromIntegral $ if head right == '0' then 64 else 127
-  , noteLen = 100 * len
-  }
 
 parseDestArgs ::
    (SndSeq.AllowOutput mode) =>
