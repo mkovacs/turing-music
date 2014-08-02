@@ -21,16 +21,6 @@ tested-with:    GHC == 6.8.2
 build-type:     Simple
 cabal-version:  >=1.2
 
-executable turing-music
-    ghc-options:    -Wall -fno-warn-name-shadowing -fno-warn-incomplete-patterns
-    main-is:        Music.hs
-    other-modules:  Turing
-                 ,  Machines
-    build-depends:  base
-                 ,  midi ==0.2.*
-                 ,  alsa-seq ==0.6.*
-                 ,  ALUT >= 2
-
 executable turing-music-midi
     ghc-options:    -Wall -fno-warn-name-shadowing -fno-warn-incomplete-patterns
     main-is:        MidiMusic.hs
@@ -42,5 +32,8 @@ executable turing-music-midi
                  ,  alsa-seq ==0.6.*
                  ,  cmdargs ==0.10.*
                  ,  containers ==0.5.*
+                 ,  midi ==0.2.*
                  ,  midi-alsa ==0.2.*
+                 ,  parsec ==3.1.*
+                 ,  parsec-numbers ==0.0.*
                  ,  transformers ==0.3.*
