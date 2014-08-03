@@ -50,6 +50,18 @@ showTape i (Tape p l r)
     tr x | x == blankSymbol = ' '
     tr x = x
 
+showTapeCentered :: Int -> Tape -> String
+showTapeCentered w (Tape p l r) =
+    reverse ls ++ rs
+  where
+    ls = cut '0' lw l
+    rs = cut '0' rw r
+    lw = w `div` 2
+    rw = w - lw
+    cut c n str =
+        if len < n then str ++ replicate (n - len) '0' else take n str
+      where len = length str
+
 --------------------
 
 data Shift = L | R deriving (Eq, Ord, Show, Read)

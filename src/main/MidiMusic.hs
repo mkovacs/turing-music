@@ -119,7 +119,7 @@ playTapes h conn scale states = do
       key = fromIntegral $ scale !! (pos `mod` length scale)
       volume = fromIntegral $ if head right == '0' then 64 else 127
       duration = (100 * len) :: Int
-    putStrLn $ showTape 78 tape
+    putStrLn $ showTapeCentered 78 tape
     _ <- Event.outputDirect h $ note key volume
     threadDelay (duration * 10^(3 :: Int))
     _ <- Event.outputDirect h $ note key 0
