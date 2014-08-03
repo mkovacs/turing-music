@@ -1,13 +1,11 @@
 module Turing where
 
-import Data.List
-
 ----------------------
 
-type Symbol = Char
+type Symbol = Bool
 
 blankSymbol :: Symbol
-blankSymbol = '0'
+blankSymbol = False
 
 ----------------------
 
@@ -46,20 +44,18 @@ showTape i (Tape p l r)
   where
     n = i - length l + p
     l' = map tr $ reverse l ++ r
-
-    tr x | x == blankSymbol = ' '
-    tr x = x
+    tr x = if x then '1' else ' '
 
 showTapeCentered :: Int -> Tape -> String
-showTapeCentered w (Tape p l r) =
-    reverse ls ++ rs
+showTapeCentered w (Tape _ l r) =
+    map (\x -> if x then '1' else '0') $ reverse ls ++ rs
   where
-    ls = cut '0' lw l
-    rs = cut '0' rw r
+    ls = cut lw l
+    rs = cut rw r
     lw = w `div` 2
     rw = w - lw
-    cut c n str =
-        if len < n then str ++ replicate (n - len) '0' else take n str
+    cut n str =
+        if len < n then str ++ replicate (n - len) False else take n str
       where len = length str
 
 --------------------

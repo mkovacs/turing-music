@@ -3,11 +3,10 @@ module Machines where
 import Turing
 
 readMachine :: String -> Machine
-readMachine = zip x . map f . words  where
-
-    x = concat [[(s, blankSymbol), (s, '1')] | s<-['A'..]]
-
-    f [st, s, d] = (s, read [d], st)
+readMachine = zip x . map f . words
+  where
+    x = concat [ [(s, blankSymbol), (s, True)] | s <- ['A'..] ]
+    f [st, s, d] = (s == '1', read [d], st)
 
 machines :: [Machine]
 machines = map (readMachine . fst) table
@@ -60,6 +59,4 @@ table =
 
 hints :: [String]
 hints = map h $ zip [0::Int ..] table where
-
     h (n, (_, s)) = show n ++ replicate (5 - length (show n)) ' ' ++ s
-
