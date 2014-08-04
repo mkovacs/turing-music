@@ -114,14 +114,14 @@ playTapes h conn scale states = do
       $ Event.simpleNote (Event.Channel 0) (Event.Pitch pitch) $ Event.Velocity vel
   play scale stateGroup = do
     let
-      tape@Tape{..} = head stateGroup
-      len = length stateGroup
+      Tape{..} = head stateGroup
       key = fromIntegral $ scale !! (pos `mod` length scale)
       volume = fromIntegral $ if head right then 127 else 64
-      duration = (100 * len) :: Int
-    putStrLn $ showTapeCentered 78 tape
+      duration = 100 :: Int
     _ <- Event.outputDirect h $ note key volume
-    threadDelay (duration * 10^(3 :: Int))
+    forM_ stateGroup $ \tape -> do
+      putStrLn $ showTapeCentered 78 tape
+      threadDelay (duration * 10^(3 :: Int))
     _ <- Event.outputDirect h $ note key 0
     return ()
 
