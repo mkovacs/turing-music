@@ -118,9 +118,11 @@ playTapes h conn scale states = do
       key = fromIntegral $ scale !! (pos `mod` length scale)
       volume = fromIntegral $ if head right then 127 else 64
       duration = 100 :: Int
+      diff = ('.', '-', '=', '#')
+      same = ('.', '-', '.', '-')
     _ <- Event.outputDirect h $ note key volume
-    forM_ stateGroup $ \tape -> do
-      putStrLn $ showTapeCentered 78 tape
+    forM_ (zip stateGroup (diff : repeat same)) $ \(tape, style) -> do
+      putStrLn $ showTapeCentered style 78 tape
       threadDelay (duration * 10^(3 :: Int))
     _ <- Event.outputDirect h $ note key 0
     return ()

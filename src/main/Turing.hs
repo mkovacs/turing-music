@@ -46,14 +46,17 @@ showTape i (Tape p l r)
     l' = map tr $ reverse l ++ r
     tr x = if x then '1' else ' '
 
-showTapeCentered :: Int -> Tape -> String
-showTapeCentered w (Tape _ l r) =
-    map (\x -> if x then '1' else '0') $ reverse ls ++ rs
+showTapeCentered :: (Char, Char, Char, Char) -> Int -> Tape -> String
+showTapeCentered (t0, t1, h0, h1) w (Tape _ l r) =
+    reverse ls ++ hs : rs
   where
-    ls = cut lw l
-    rs = cut rw r
+    ls = map (showBool t0 t1) $ cut lw l
+    hs = showBool h0 h1 $ head rest
+    rs = map (showBool t0 t1) $ tail rest
+    rest = cut rw r
     lw = w `div` 2
     rw = w - lw
+    showBool f t b = if b then t else f
     cut n str =
         if len < n then str ++ replicate (n - len) False else take n str
       where len = length str
