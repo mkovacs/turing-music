@@ -16,7 +16,7 @@ import qualified Sound.MIDI.Message.Channel.Mode as Mode
 
 import           Control.Concurrent           (threadDelay)
 import           Control.Exception            (finally)
-import           Control.Monad                (forM_)
+import           Control.Monad                (forM_, when)
 import           Control.Monad.IO.Class       (liftIO)
 import           Control.Monad.Trans.Cont     (ContT(ContT), runContT)
 import           Data.Int                     (Int32)
@@ -25,6 +25,7 @@ import qualified Data.Map                     as Map
 import           Data.Word                    (Word8)
 import           System.Console.CmdArgs
 import           System.Environment           (getArgs)
+import           System.IO                    as IO
 
 import           Machines
 import           Turing
@@ -40,6 +41,10 @@ main = handleExceptionCont $ do
 midiMain :: SndSeq.T SndSeq.OutputMode -> Port.T -> IO ()
 midiMain h p = do
   Arguments{..} <- cmdArgs arguments
+  when (machine < 0 || machine > 41) $ do
+    error "machine number must be between 0 and 41"
+  when (width < 1) $ do
+    error "terminal width must be at least 1"
   let
     basePitch = read base :: Scale.Pitch
     scaleKeys = Scale.scaleValues basePitch scale
@@ -50,7 +55,7 @@ midiMain h p = do
   conn <- parseDestArgs h (Addr.Cons c p) port
   _ <- Event.outputDirect h $ Event.forConnection conn $ Event.CtrlEv Event.PgmChange
          $ MidiAlsa.programChangeEvent channel0 (Midi.instrumentToProgram instrument)
-  finally (playTapes h conn scaleKeys tapes) (allSoundOff h conn)
+  finally (playTapes h conn width scaleKeys tapes) (allSoundOff h conn)
 
 allSoundOff :: SndSeq.T SndSeq.OutputMode -> Connect.T -> IO ()
 allSoundOff h conn = do
@@ -66,14 +71,21 @@ deriving instance Typeable Midi.Instrument
 
 data Arguments = Arguments
   { port       :: String
+  , list       :: Maybe Listing
   , machine    :: Int
   , instrument :: Midi.Instrument
   , scale      :: Scale.Pattern
   , base       :: String
+  , width      :: Int
   } deriving (Data, Eq, Show, Typeable)
+
+data Listing = Machines | Instruments | Scales | Bases
+  deriving (Data, Eq, Show, Typeable)
 
 defaultPort       :: String
 defaultPort       = "128:0"
+defaultList       :: Maybe Listing
+defaultList       = Nothing
 defaultMachine    :: Int
 defaultMachine    = 41
 defaultInstrument :: Midi.Instrument
@@ -82,6 +94,8 @@ defaultScale      :: Scale.Pattern
 defaultScale      = Scale.MajorPentatonic
 defaultBase       :: String
 defaultBase       = "C5"
+defaultWidth      :: Int
+defaultWidth      = 78
 
 arguments :: Arguments
 arguments = Arguments
@@ -89,6 +103,9 @@ arguments = Arguments
     =  defaultPort
     &= typ "CLIENT:PORT,..."
     &= help ("MIDI port(s) to play to (default: " ++ defaultPort ++ ")")
+  , list
+    = defaultList
+    &= help ("List possible values for a given flag")
   , machine
     =  defaultMachine
     &= help ("Machine to use as generator (default: " ++ show defaultMachine ++ ")")
@@ -102,27 +119,34 @@ arguments = Arguments
     =  defaultBase
     &= typ "PITCH"
     &= help ("Base note of the scale (default: " ++ defaultBase ++ ")")
+  , width
+    =  defaultWidth
+    &= help ("Terminal width for visualization (default: " ++ show defaultWidth ++ ")")
   } &= program "turing-tunes-midi" &= summary "Generate MIDI tunes from simple Turing machines"
 
-playTapes :: SndSeq.T SndSeq.OutputMode -> Connect.T -> [Int] -> [Tape] -> IO ()
-playTapes h conn scale states = do
+playTapes :: SndSeq.T SndSeq.OutputMode -> Connect.T -> Int -> [Int] -> [Tape] -> IO ()
+playTapes h conn width scale states = do
+  putStrLn $ replicate (width `div` 2) '-' ++ "_" ++ replicate (width - width `div` 2 - 1) '-'
   mapM_ (play scale) groups
  where
   groups = groupBy eq states
   note pitch vel =
     Event.forConnection conn $ Event.NoteEv Event.NoteOn
       $ Event.simpleNote (Event.Channel 0) (Event.Pitch pitch) $ Event.Velocity vel
+  
   play scale stateGroup = do
     let
       Tape{..} = head stateGroup
       key = fromIntegral $ scale !! (pos `mod` length scale)
       volume = fromIntegral $ if head right then 127 else 64
       duration = 100 :: Int
-      diff = ('.', '-', '=', '#')
-      same = ('.', '-', '.', '-')
+      diff = (' ', '0', '1', '0', '1')
+      same = (' ', '0', '1', '0', '1')
     _ <- Event.outputDirect h $ note key volume
     forM_ (zip stateGroup (diff : repeat same)) $ \(tape, style) -> do
-      putStrLn $ showTapeCentered style 78 tape
+      putStr $ showTapeCentered style width tape
+      IO.hFlush IO.stdout
+      putStr "\r"
       threadDelay (duration * 10^(3 :: Int))
     _ <- Event.outputDirect h $ note key 0
     return ()
