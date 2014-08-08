@@ -22,9 +22,11 @@ import           Control.Monad.Trans.Cont     (ContT(ContT), runContT)
 import           Data.Int                     (Int32)
 import           Data.List                    (groupBy)
 import qualified Data.Map                     as Map
+import           Data.Maybe                   (fromJust)
 import           Data.Word                    (Word8)
 import           System.Console.CmdArgs
 import           System.Environment           (getArgs)
+import           System.Exit                  (exitSuccess)
 import           System.IO                    as IO
 
 import           Machines
@@ -45,6 +47,13 @@ midiMain h p = do
     error "machine number must be between 0 and 41"
   when (width < 1) $ do
     error "terminal width must be at least 1"
+  when (list /= Nothing) $ do
+    case fromJust list of
+      Machines    -> putStr $ unlines hints
+      Instruments -> putStrLn "list instruments"
+      Scales      -> putStrLn "list scales"
+      Bases       -> putStrLn "list bases"
+    exitSuccess
   let
     basePitch = read base :: Scale.Pitch
     scaleKeys = Scale.scaleValues basePitch scale
